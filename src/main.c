@@ -117,74 +117,54 @@ void cursor_position_callback(GLFWwindow *window, double x, double y) {
 
 float *hilbertCurve(int order) {
 
-    if (order == 0) {
-        float *vertices = (float *) malloc(8 * sizeof(float));
-        if (!vertices) {
-            fprintf(stderr, "Memory allocation failed!");
-            exit(EXIT_FAILURE);
+    float base[] = {-0.5f, -0.5f, -0.5f, 0.5f, 0.5f, 0.5f, 0.5f, -0.5f};
+
+    int num_vertices = pow(4, order + 1);
+    int num_floats = num_vertices * 2;
+
+    float *vertices = (float *) malloc(num_floats * sizeof(float));
+    memcpy(vertices, base, 8 * sizeof(float));
+
+    for (int current_order = 1; current_order <= order; current_order++) {
+        int prev_num_floats = pow(4, current_order) * 2;
+        int new_num_floats = prev_num_floats * 4;
+
+        for (int i = 1; i < 4; i++) {
+            memcpy(&vertices[i * prev_num_floats], vertices, prev_num_floats * sizeof(float));
         }
 
-        float base[] = {-0.5f, -0.5f, -0.5f, 0.5f, 0.5f, 0.5f, 0.5f, -0.5f};
-        memcpy(vertices, base, 8 * sizeof(float));
-        return vertices;
+        for (int i = 0; i < new_num_floats; i += 2) {
+
+            int quarter = i / (new_num_floats / 4);
+
+            float *px = &vertices[i];
+            float *py = &vertices[i + 1];
+
+            if (quarter == 0) {
+                float temp = *px;
+                *px = *py - 1.0;
+                *py = temp - 1.0;
+            }
+            if (quarter == 1) {
+                *px -= 1.0;
+                *py += 1.0;
+            }
+            if (quarter == 2) {
+                *px += 1.0;
+                *py += 1.0;
+            }
+            if (quarter == 3) {
+                float temp = *px;
+                *px = -(*py) + 1.0;
+                *py = -temp - 1.0;
+            }
+
+            *px *= 0.5;
+            *py *= 0.5;
+        }
     }
 
-    float *previous_vertices = hilbertCurve(order - 1);
-
-    int num_prev_floats = pow(4, order) * 2;
-    int num_new_floats = num_prev_floats * 4;
-
-    float *repeated_vertices = (float *) malloc(num_new_floats * sizeof(float));
-
-    if (!repeated_vertices) {
-        fprintf(stderr, "Memory allocation failed!\n");
-        exit(EXIT_FAILURE);
-    }
-
-    for (int i = 0; i < 4; i++) {
-        memcpy(repeated_vertices + (i * num_prev_floats), previous_vertices, num_prev_floats * sizeof(float));
-    }
-
-    free(previous_vertices);
-
-    for (int i = 0; i < num_new_floats; i += 2) {
-
-        int quarter = i / (num_new_floats / 4);
-
-        if (quarter == 0) {
-            float temp = repeated_vertices[i];
-            repeated_vertices[i] = repeated_vertices[i + 1];
-            repeated_vertices[i + 1] = temp;
-
-            repeated_vertices[i] -= 1.0;
-            repeated_vertices[i + 1] -= 1.0;
-        }
-        if (quarter == 1) {
-            repeated_vertices[i] -= 1.0;
-            repeated_vertices[i + 1] += 1.0;
-        }
-        if (quarter == 2) {
-            repeated_vertices[i] += 1.0;
-            repeated_vertices[i + 1] += 1.0;
-        }
-        if (quarter == 3) {
-
-            float temp = repeated_vertices[i];
-            repeated_vertices[i] = repeated_vertices[i + 1];
-            repeated_vertices[i + 1] = temp;
-
-            repeated_vertices[i] *= -1.0;
-            repeated_vertices[i + 1] *= -1.0;
-
-            repeated_vertices[i] += 1.0;
-            repeated_vertices[i + 1] -= 1.0;
-        }
-
-        repeated_vertices[i] *= 0.5;
-        repeated_vertices[i + 1] *= 0.5;
-    }
-
-    return repeated_vertices;
+    return vertices;
 }
 
 int main() {
