@@ -12,4 +12,4 @@ add_executable(hilbert ./src/main.c)
 
 add_dependencies(hilbert copy_data)
 
-target_link_libraries(hilbert PRIVATE glad glfw glm)
+target_link_libraries(hilbert PRIVATE glad glfw)
