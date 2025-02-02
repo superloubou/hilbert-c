@@ -167,6 +167,61 @@ float *hilbertCurve(int order) {
     return vertices;
 }
 
+float *generate_triangle_strip(float *vertices, int num_floats, float width) {
+    int num_new_floats = num_floats * 2;
+    float *new_vertices = (float *) malloc(num_new_floats * sizeof(float));
+
+    for (int i = 0; i < num_floats; i += 2) {
+        float a[2] = {vertices[i - 2], vertices[i - 1]};
+        float b[2] = {vertices[i], vertices[i + 1]};
+        float c[2] = {vertices[i + 2], vertices[i + 3]};
+
+        float ba_diff[2] = {0.0f, 0.0f};
+        float cb_diff[2] = {0.0f, 0.0f};
+
+        if (i > 0) {
+            a[0] = vertices[i - 2];
+            a[1] = vertices[i - 1];
+            ba_diff[0] = b[0] - a[0];
+            ba_diff[1] = b[1] - a[1];
+        }
+
+        if (i < num_floats - 2) {
+            c[0] = vertices[i + 2];
+            c[1] = vertices[i + 3];
+            cb_diff[0] = c[0] - b[0];
+            cb_diff[1] = c[1] - b[1];
+        }
+
+        if (i == 0) {
+            vertices[i] -= (cb_diff[0] > 0.0f) * width;
+            vertices[i + 1] -= (cb_diff[1] > 0.0f) * width;
+        }
+
+        if (i == num_floats - 2) {
+            vertices[num_floats - 2] += (ba_diff[0] > 0.0f) * width;
+            vertices[num_floats - 1] -= (ba_diff[1] < 0.0f) * width;
+        }
+
+        int any_positive_y = 0, any_negative_y = 0;
+        int any_positive_x = 0, any_negative_x = 0;
+
+        any_positive_y = (ba_diff[1] > 0.0f) || (cb_diff[1] > 0.0f);
+        any_negative_y = (ba_diff[1] < 0.0f) || (cb_diff[1] < 0.0f);
+
+        any_positive_x = (ba_diff[0] > 0.0f) || (cb_diff[0] > 0.0f);
+        any_negative_x = (ba_diff[0] < 0.0f) || (cb_diff[0] < 0.0f);
+
+        new_vertices[i * 2 + 0] = vertices[i] + (-width * any_positive_y + width * any_negative_y);
+        new_vertices[i * 2 + 1] = vertices[i + 1] + (width * any_positive_x - width * any_negative_x);
+
+        new_vertices[i * 2 + 2] = vertices[i] + (width * any_positive_y - width * any_negative_y);
+        new_vertices[i * 2 + 3] = vertices[i + 1] + (-width * any_positive_x + width * any_negative_x);
+    }
+
+    return new_vertices;
+}
+
 int main() {
 
     if (!glfwInit()) {
@@ -178,7 +233,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow *window = glfwCreateWindow(800, 800, "Hilbert Curve Shader", NULL, NULL);
+    GLFWwindow *window = glfwCreateWindow(800, 800, "Hilbert Curve", NULL, NULL);
     if (!window) {
         fprintf(stderr, "Failed to create GLFW window\n");
         glfwTerminate();
@@ -206,12 +261,12 @@ int main() {
     free(vertexShaderSource);
     free(fragmentShaderSource);
 
-    int order = 10;
+    int order = 3;
     int num_vertices = pow(4, order + 1) * 2;
 
-    int byte_size = sizeof(float *) * num_vertices;
-
     float *vertices = hilbertCurve(order);
+
+    float *triangle_strip_vertices = generate_triangle_strip(vertices, num_vertices, 0.25 / pow(2, order));
 
     glUseProgram(shaderProgram);
 
@@ -223,12 +278,13 @@ int main() {
 
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, num_vertices * sizeof(float), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, num_vertices * sizeof(float) * 2, triangle_strip_vertices, GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void *) 0);
     glEnableVertexAttribArray(0);
 
     free(vertices);
+    free(triangle_strip_vertices);
 
     while (!glfwWindowShouldClose(window)) {
 
@@ -246,7 +302,7 @@ int main() {
 
         glBindVertexArray(VAO);
 
-        glDrawArrays(GL_LINE_STRIP, 0, num_vertices / 2);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, num_vertices);
 
         glfwSwapBuffers(window);
         glfwPollEvents();

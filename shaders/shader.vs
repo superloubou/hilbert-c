@@ -14,7 +14,7 @@ vec3 hsv2rgb(float h, float s, float v) {
 }
 
 void main() {
-    float t = float(gl_VertexID) / float(uNumSegments);
+    float t = float(floor(gl_VertexID /2)) / float(uNumSegments);
 
     vColor = hsv2rgb(t, 1.0, 1.0);
 
